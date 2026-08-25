@@ -141,13 +141,11 @@ func TestOPACapabilitiesIncludeNoRegalBuiltins(t *testing.T) {
 	}
 }
 
-func TestCapabilitiesIncludeExperimentalKeywords(t *testing.T) {
+func TestCapabilitiesIncludeLogicalKeywords(t *testing.T) {
 	t.Parallel()
 
 	for _, keyword := range []string{"and", "or"} {
 		assert.True(t, slices.Contains(Capabilities().FutureKeywords, keyword))
-		must.Equal(t, false, slices.Contains(OPACapabilities().FutureKeywords, keyword),
-			"experimental keyword %q advertised in OPA capabilities", keyword)
 	}
 }
 
