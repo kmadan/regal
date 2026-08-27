@@ -334,3 +334,7 @@ non_loop_expression if {
 	endswith(user.email, "example.com")
 	role == "admin"
 }
+
+unconditional_rule_definition := true if input.conditional
+
+unconditional_rule_definition := false
