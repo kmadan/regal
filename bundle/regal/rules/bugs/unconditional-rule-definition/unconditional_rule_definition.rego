@@ -9,11 +9,10 @@ import data.regal.ast
 import data.regal.result
 
 report contains violation if {
-	some definitions in _single_value_definitions
+	some name, definitions in _single_value_definitions
 
 	# At least one definition decides its value based on conditions...
-	some conditional in definitions
-	_condition_count(conditional) > 0
+	_names_with_a_conditional_definition[name]
 
 	# ...and at least one is always defined, whatever the input. The conditions
 	# above can then never decide the answer: either the two values differ and
@@ -23,6 +22,19 @@ report contains violation if {
 	_always_defined(unconditional)
 
 	violation := result.fail(rego.metadata.chain(), result.location(unconditional))
+}
+
+# Names carrying at least one conditional definition.
+#
+# Pairing the two kinds by iterating both inside `report` walks the definitions
+# of a name once per conditional definition it has, to reach a violation that
+# depends only on the unconditional one. Collecting the names first makes the
+# pairing a single set lookup.
+_names_with_a_conditional_definition contains name if {
+	some name, definitions in _single_value_definitions
+	some rule in definitions
+
+	_condition_count(rule) > 0
 }
 
 # Definitions of single-value rules, grouped by the name they define.
@@ -55,10 +67,10 @@ _single_value_definitions[name] contains rule if {
 _condition_count(rule) := count(object.get(rule, "body", []))
 
 # `ast.static_ref` takes a term rather than a bare ref, and a rule head's `ref`
-# is the array itself, so the check is spelled out here.
-_static_ref(ref) if every part in array.slice(ref, 1, count(ref)) {
-	part.type == "string"
-}
+# is the array itself. `ast.ref_static_to_string` truncates a ref at its first
+# non-static part, and that truncation is a no-op exactly when the ref is
+# static, so comparing the two string forms is the same test without a shim.
+_static_ref(ref) if ast.ref_static_to_string(ref) == ast.ref_to_string(ref)
 
 _always_defined(rule) if {
 	_condition_count(rule) == 0

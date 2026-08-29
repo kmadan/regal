@@ -85,7 +85,13 @@ unconditional answers and the `default` is doing nothing.
   definitions union rather than conflict.
 - Function definitions whose arguments are not all distinct variables are not
   reported. `f("a") := 1` has no body but applies only to the argument `"a"`, so
-  the other definitions in the set still do real work.
+  the other definitions in the set still do real work. This does leave a case
+  uncovered: `f("a") := 1` beside `f("a") := 2 if input.cond` can conflict, and
+  telling that apart needs the arguments compared rather than just counted.
+- Rules whose head contains a variable (`config[k] := "loose"`) are not
+  reported. Deciding whether two such definitions can ever collide means
+  reasoning about what the variable is bound to, which needs more than this
+  rule attempts.
 
 ## Configuration Options
 
