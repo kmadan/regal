@@ -1,12 +1,12 @@
-package regal.rules.bugs["unconditional-rule-definition_test"]
+package regal.rules.bugs["unconditional-with-conditions_test"]
 
 import data.regal.ast
 
-import data.regal.rules.bugs["unconditional-rule-definition"] as rule
+import data.regal.rules.bugs["unconditional-with-conditions"] as rule
 
 # The shape of the violation, asserted once in full. The remaining tests assert
 # which definition was flagged, which is the part that can actually regress.
-test_fail_catch_all_with_conflicting_value if {
+test_fail_unconditional_definition_with_conflicting_value if {
 	r := rule.report with input as ast.policy(`
 	allow := true if input.ok
 
@@ -29,15 +29,16 @@ test_fail_catch_all_with_conflicting_value if {
 		},
 		"related_resources": [{
 			"description": "documentation",
-			"ref": "https://www.openpolicyagent.org/projects/regal/rules/bugs/unconditional-rule-definition",
+			"ref": "https://www.openpolicyagent.org/projects/regal/rules/bugs/unconditional-with-conditions",
 		}],
-		"title": "unconditional-rule-definition",
+		"title": "unconditional-with-conditions",
 	}}
 }
 
-# The catch-all agrees with the conditional definition, so evaluation does not
-# fail. The conditional definition is dead code, which is still worth reporting.
-test_fail_catch_all_with_same_value if {
+# The unconditional definition agrees with the conditional one, so evaluation
+# does not fail. The conditional definition is dead code, which is still worth
+# reporting.
+test_fail_unconditional_definition_with_same_value if {
 	r := rule.report with input as ast.policy(`
 	deny := true if input.bad
 
@@ -48,7 +49,7 @@ test_fail_catch_all_with_same_value if {
 }
 
 # The function form, which is the one that turns up in practice.
-test_fail_catch_all_function if {
+test_fail_unconditional_function_with_wildcard_argument if {
 	r := rule.report with input as ast.policy(`
 	f(x) if x > 10
 
@@ -58,7 +59,19 @@ test_fail_catch_all_function if {
 	_flagged(r) == {"\tf(_) := false"}
 }
 
-test_fail_catch_all_alongside_default if {
+# A named argument that the body does not constrain is as unconditional as a
+# wildcard, and this is how the shape is usually written.
+test_fail_unconditional_function_with_named_argument if {
+	r := rule.report with input as ast.policy(`
+	f(x) := true if x > 10
+
+	f(x) := false
+	`)
+
+	_flagged(r) == {"\tf(x) := false"}
+}
+
+test_fail_unconditional_definition_alongside_default if {
 	r := rule.report with input as ast.policy(`
 	default f(_) := false
 
@@ -70,7 +83,7 @@ test_fail_catch_all_alongside_default if {
 	_flagged(r) == {"\tf(_) := false"}
 }
 
-test_fail_catch_all_before_the_conditional_definition if {
+test_fail_unconditional_definition_before_the_conditional_one if {
 	r := rule.report with input as ast.policy(`
 	allow := false
 
@@ -80,7 +93,7 @@ test_fail_catch_all_before_the_conditional_definition if {
 	_flagged(r) == {"\tallow := false"}
 }
 
-test_fail_catch_all_with_constant_composite_value if {
+test_fail_unconditional_definition_with_constant_composite_value if {
 	r := rule.report with input as ast.policy(`
 	config := {"mode": "strict"} if input.strict
 
@@ -90,7 +103,7 @@ test_fail_catch_all_with_constant_composite_value if {
 	_flagged(r) == {"\tconfig := {\"mode\": \"loose\"}"}
 }
 
-test_fail_two_catch_alls_are_both_reported if {
+test_fail_two_unconditional_definitions_are_both_reported if {
 	r := rule.report with input as ast.policy(`
 	allow := true if input.ok
 
@@ -102,7 +115,7 @@ test_fail_two_catch_alls_are_both_reported if {
 	_flagged(r) == {"\tallow := false", "\tallow := true"}
 }
 
-test_fail_partial_object_rule_with_static_ref if {
+test_fail_ref_head_with_static_string if {
 	r := rule.report with input as ast.policy(`
 	config.mode := "strict" if input.strict
 
@@ -110,6 +123,18 @@ test_fail_partial_object_rule_with_static_ref if {
 	`)
 
 	_flagged(r) == {"\tconfig.mode := \"loose\""}
+}
+
+# A number is as static a ref part as a string is, so these two definitions
+# address the same document and conflict in the same way.
+test_fail_ref_head_with_static_number if {
+	r := rule.report with input as ast.policy(`
+	config[1] := "strict" if input.strict
+
+	config[1] := "loose"
+	`)
+
+	_flagged(r) == {"\tconfig[1] := \"loose\""}
 }
 
 # --- cases that must not be reported ----------------------------------------
@@ -128,8 +153,8 @@ test_success_multi_value_rule if {
 	r == set()
 }
 
-# `f("a")` has no body but applies only to that one argument, so the other
-# definitions in the set still do the work for every other argument.
+# `f("a")` has no conditions but applies only to that one argument, so the
+# other definitions in the set still do the work for every other argument.
 test_success_function_with_constant_argument if {
 	r := rule.report with input as ast.policy(`
 	f("a") := 1
@@ -140,8 +165,8 @@ test_success_function_with_constant_argument if {
 	r == set()
 }
 
-# Repeating an argument name is a constraint, not a catch-all: this matches
-# only calls where both arguments are equal.
+# Repeating an argument name is a constraint too: this definition applies only
+# to calls where both arguments are equal.
 test_success_function_with_repeated_argument_name if {
 	r := rule.report with input as ast.policy(`
 	f(x, x) := 1
@@ -152,8 +177,8 @@ test_success_function_with_repeated_argument_name if {
 	r == set()
 }
 
-# The unconditional definition can itself be undefined, so the conditional one
-# is what answers in that case. Reporting this would be a false positive.
+# The definition without conditions can itself be undefined, so the conditional
+# one is what answers in that case. Reporting this would be a false positive.
 test_success_unconditional_value_is_not_constant if {
 	r := rule.report with input as ast.policy(`
 	allow := input.override
@@ -182,6 +207,30 @@ test_success_only_unconditional_definitions if {
 	r == set()
 }
 
+# Two definitions that both lack conditions may well conflict, but no condition
+# is made pointless by it, which is what this rule reports. `allow := true`
+# beside `allow := false` conflicts on every evaluation and is left to a rule of
+# its own; `duplicate-rule` does not catch it either, as it compares rule text.
+test_success_two_definitions_without_conditions if {
+	r := rule.report with input as ast.policy(`
+	allow := true
+
+	allow := false
+	`)
+
+	r == set()
+}
+
+test_success_definition_without_conditions_beside_a_non_constant_one if {
+	r := rule.report with input as ast.policy(`
+	allow := input.override
+
+	allow := true
+	`)
+
+	r == set()
+}
+
 test_success_all_definitions_conditional if {
 	r := rule.report with input as ast.policy(`
 	allow := true if input.ok
@@ -192,14 +241,28 @@ test_success_all_definitions_conditional if {
 	r == set()
 }
 
-# `else` is one way to write a fallback, `default` another. It is a single rule
-# with an ordered chain rather than a set of definitions, so the earlier
-# conditions do decide the answer and there is nothing to report.
+# `else` gives one rule with an ordered chain rather than a set of definitions,
+# so the earlier conditions do decide the answer and there is nothing to report.
+# It is one of several ways to write a fallback, `default` being another.
 test_success_else_fallback if {
 	r := rule.report with input as ast.policy(`
 	f(x) := 1 if {
 		x > 10
 	} else := 2
+	`)
+
+	r == set()
+}
+
+# Whether two dynamic ref heads ever address the same document depends on what
+# the key evaluates to, so they are left alone. A variable in the ref, rather
+# than a computed key, would be unsafe in a definition without a body, so this
+# is the form the exclusion has to cover.
+test_success_dynamic_ref_head if {
+	r := rule.report with input as ast.policy(`
+	config[input.key] := "loose"
+
+	config[input.key] := "strict" if input.strict
 	`)
 
 	r == set()

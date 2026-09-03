@@ -1,4 +1,4 @@
-# unconditional-rule-definition
+# unconditional-with-conditions
 
 **Summary**: Rule defined unconditionally alongside conditional definitions
 
@@ -45,13 +45,12 @@ The mistake is easy to make because a body-less definition reads like one. In
 looks like a declaration of a starting value rather than a third rule in the
 set.
 
-It is worth catching statically because of *where* it fails. The conflict is
-raised at evaluation time and only on the inputs that reach the conditional
+Static detection matters because of where the failure surfaces. The conflict is
+raised at evaluation time, and only on the inputs that reach the conditional
 branch, so a policy can pass `opa check --strict`, pass a test suite whose
-fixtures never take that branch, and then fail in production on real data. Worse,
-in a policy used as a gate, a rule that errors is a rule that returns no
-decision — so a defect that looks like a loud runtime error behaves, at the
-boundary, like a policy that quietly stopped saying no.
+fixtures never take that branch, and fail later on real data. In a policy used
+as a gate, a rule that errors returns no decision at all, which at the boundary
+is indistinguishable from a policy that stopped denying.
 
 The same pattern also defeats `default`. Given
 
@@ -92,6 +91,17 @@ unconditional answers and the `default` is doing nothing.
   reported. Deciding whether two such definitions can ever collide means
   reasoning about what the variable is bound to, which needs more than this
   rule attempts.
+- At least one definition must carry conditions. Two definitions that both lack
+  them conflict without any condition being made pointless, and that is left to
+  a rule of its own:
+
+  ```rego
+  allow := true
+
+  allow := false
+  ```
+
+  `duplicate-rule` does not report this either, as it compares rule text.
 
 ## Configuration Options
 
@@ -100,7 +110,7 @@ This linter rule provides the following configuration options:
 ```yaml
 rules:
   bugs:
-    unconditional-rule-definition:
+    unconditional-with-conditions:
       # one of "error", "warning", "ignore"
       level: error
 ```
@@ -109,7 +119,7 @@ rules:
 
 - OPA Docs: [Default Keyword](https://www.openpolicyagent.org/docs/policy-language/#default-keyword)
 - OPA Docs: [Complete Definitions](https://www.openpolicyagent.org/docs/policy-language/#complete-definitions)
-- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/unconditional-rule-definition/unconditional_rule_definition.rego)
+- GitHub: [Source Code](https://github.com/open-policy-agent/regal/blob/main/bundle/regal/rules/bugs/unconditional-with-conditions/unconditional_with_conditions.rego)
 
 ## Community
 

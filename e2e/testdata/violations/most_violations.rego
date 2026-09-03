@@ -335,6 +335,6 @@ non_loop_expression if {
 	role == "admin"
 }
 
-unconditional_rule_definition := true if input.conditional
+unconditional_with_conditions := true if input.conditional
 
-unconditional_rule_definition := false
+unconditional_with_conditions := false

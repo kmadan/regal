@@ -52,7 +52,7 @@ rules:
       level: error
     unassigned-return-value:
       level: error
-    unconditional-rule-definition:
+    unconditional-with-conditions:
       level: error
     unused-output-variable:
       level: error
